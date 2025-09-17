@@ -1,48 +1,15 @@
 <?php
-include 'db.php';
-session_start();
-
-// --- Redirect if not logged in ---
-if (!isset($_SESSION['username'])) {
-    header("Location: login.php");
-    exit();
-}
-
-// --- Search functionality ---
-$search = isset($_GET['q']) ? $_GET['q'] : "";
-
-// --- Pagination setup ---
-$perPage = 3; //  Show 3 posts per page
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-if ($page < 1) $page = 1;
-$offset = ($page - 1) * $perPage;
-
-// Count total posts (with search filter)
-$countSql = "SELECT COUNT(*) AS total FROM posts 
-             WHERE title LIKE ? OR content LIKE ?";
-$stmt = $conn->prepare($countSql);
-$like = "%$search%";
-$stmt->bind_param("ss", $like, $like);
-$stmt->execute();
-$countResult = $stmt->get_result()->fetch_assoc();
-$totalPosts = $countResult['total'];
-$totalPages = ceil($totalPosts / $perPage);
-
-// Fetch posts (with search + pagination)
-$sql = "SELECT * FROM posts 
-        WHERE title LIKE ? OR content LIKE ?
-        ORDER BY created_at DESC 
-        LIMIT ?, ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("ssii", $like, $like, $offset, $perPage);
-$stmt->execute();
-$result = $stmt->get_result();
+$data = include 'posts.php'; 
+$posts = $data['posts'];
+$totalPages = $data['totalPages'];
+$page = $data['page'];
+$search = $data['search'];
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Blog Posts</title>
+    <title>Blog - Home</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body.dark-mode {
@@ -63,12 +30,8 @@ $result = $stmt->get_result();
     <!-- Top Navbar -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>📚 Blog Posts</h2>
-
         <div>
-            <!-- Dark/Light Switch -->
             <button class="btn btn-secondary theme-toggle">🌙 / ☀️</button>
-
-            <!-- Logout Button -->
             <a href="logout.php" class="btn btn-danger ms-2">🚪 Logout</a>
         </div>
     </div>
@@ -80,8 +43,8 @@ $result = $stmt->get_result();
         <button type="submit" class="btn btn-primary">Search</button>
     </form>
 
-    <?php if ($result->num_rows > 0): ?>
-        <?php while($row = $result->fetch_assoc()): ?>
+    <?php if (count($posts) > 0): ?>
+        <?php foreach ($posts as $row): ?>
             <div class="card mb-3">
                 <div class="card-body">
                     <h4 class="card-title"><?= htmlspecialchars($row['title']) ?></h4>
@@ -92,7 +55,7 @@ $result = $stmt->get_result();
                     <a href="delete.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-danger mt-2">Delete</a>
                 </div>
             </div>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
 
         <!-- Pagination -->
         <nav>
@@ -112,7 +75,6 @@ $result = $stmt->get_result();
     <a href="create.php" class="btn btn-success">➕ Add New Post</a>
 
     <script>
-        // Dark/Light Mode Toggle
         const toggleBtn = document.querySelector(".theme-toggle");
         toggleBtn.addEventListener("click", () => {
             document.body.classList.toggle("dark-mode");
